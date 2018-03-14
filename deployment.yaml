@@ -1,0 +1,174 @@
+
+# Meme service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: meme
+  name: meme
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+  selector:
+    app: meme
+---
+# Imager service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: imager
+  name: imager
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+  selector:
+    app: imager
+---
+# Redis service - internal for now
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: redis
+  name: redis
+spec:
+  ports:
+  - port: 6379
+    targetPort: 6379
+    name: tcp
+  selector:
+    app: redis 
+---
+# Imager deployment
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: imager-0.0.1
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: imager
+        version: 0.0.1
+    spec:
+      containers:
+      - name: imager
+        image:  r.jdkr.io/galo/imager:0.0.1
+        imagePullPolicy: Always        
+        ports:
+        - containerPort: 8080
+        livenessProbe:	
+          httpGet: {path: imager/v1/health,	
+            port: 8080}	
+          initialDelaySeconds: 30	
+          timeoutSeconds: 5	
+        readinessProbe:	
+          httpGet: {path: imager/v1/health,	
+            port: 8080}	
+          initialDelaySeconds: 30	
+          timeoutSeconds: 5        
+---
+# Redis deployment
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: redis-master
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: redis
+        role: master
+        tier: backend
+    spec:
+      containers:
+      - name: master
+        image: gcr.io/google_containers/redis:e2e  # or just image: redis
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 6379
+---
+# Meme bosie deployment
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: meme-boise
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 2
+  template:
+    metadata:
+      labels: 
+        app: meme
+        version: 2.1.0
+        lz: us
+    spec:
+      containers:
+      - name: meme
+        image: r.jdkr.io/galo/meme:2.1.0
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: 1
+            memory: 1.2Gi
+          requests:
+            cpu: 100m
+            memory: 512Mi
+        ports:
+        - containerPort: 8080
+        livenessProbe:
+          httpGet: {path: meme/v1/health,
+              port: 8080}
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet: {path: meme/v1/health,
+              port: 8080}
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+        env:
+        - name: COUNTRY_CODE
+          value: us
+        - name: HTTPBIN_URL
+          value: http://now.httpbin.org
+        - name: IMAGER_URL
+          value: http://imager:8080/imager
+        - name: AUTH_KEY
+          valueFrom:
+            secretKeyRef:
+              name: meme-secret
+              key: auth-key
+---
+###########################################################################
+# Ingress resource (gateway)
+##########################################################################
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: gateway
+  annotations:
+    kubernetes.io/ingress.class: "istio"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /meme/.*
+        backend:
+          serviceName: meme
+          servicePort: 8080
+      - path: /imager/.*
+        backend:
+          serviceName: imager
+          servicePort: 8080    
+---

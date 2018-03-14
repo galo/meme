@@ -1,0 +1,29 @@
+# Imager deployment
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: imager-0.0.2
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: imager
+        version: 0.0.2
+    spec:
+      containers:
+      - name: imager
+        image:  r.jdkr.io/galo/imager:0.0.2
+        imagePullPolicy: Always        
+        ports:
+        - containerPort: 8080
+        livenessProbe:	
+          httpGet: {path: imager/v1/health,	
+            port: 8080}	
+          initialDelaySeconds: 30	
+          timeoutSeconds: 5	
+        readinessProbe:	
+          httpGet: {path: imager/v1/health,	
+            port: 8080}	
+          initialDelaySeconds: 30	
+          timeoutSeconds: 5    

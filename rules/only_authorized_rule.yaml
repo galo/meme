@@ -1,0 +1,30 @@
+# See - https://groups.google.com/forum/#!topic/istio-security/DzLR6Gqqjxk
+---
+apiVersion: "config.istio.io/v1alpha2"
+kind: denier
+metadata:
+  name: handler
+  namespace: default
+spec:
+  status:
+    code: 16
+    message: Not Authorized
+---
+apiVersion: "config.istio.io/v1alpha2"
+kind: checknothing
+metadata:
+  name: denyrequest
+  namespace: default
+spec:
+---
+apiVersion: "config.istio.io/v1alpha2"
+kind: rule
+metadata:
+  name: denymeme
+  namespace: default
+spec:
+  # TODO: do not check for endpoints that are open - ie health, image and now
+  match: destination.service == "meme.default.svc.cluster.local" && request.headers["authorization"] == "unauthorized"
+  actions:
+  - handler: handler.denier
+    instances: [ denyrequest.checknothing]

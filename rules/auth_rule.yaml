@@ -1,0 +1,22 @@
+apiVersion: config.istio.io/v1alpha2
+kind: EndUserAuthenticationPolicySpec
+metadata: 
+  name: meme-auth-policy  
+  namespace: default
+spec: 
+  jwts: 
+    - issuer: https://hpcorp-cwp-dev.apigee.net
+      jwks_uri: https://hpcorp-cwp-dev.apigee.net/hpid-oauth-meme-apiproxy/v1/jwks 
+--- 
+apiVersion: config.istio.io/v1alpha2
+kind: EndUserAuthenticationPolicySpecBinding
+metadata:
+  name: meme-auth-policy-binding
+  namespace: default
+spec:
+  policies:
+    - name: meme-auth-policy
+      namespace: default
+  services:
+    - name: meme
+      namespace: default
